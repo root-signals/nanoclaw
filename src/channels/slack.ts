@@ -40,6 +40,7 @@ export class SlackChannel implements Channel {
   private userNameCache = new Map<string, string>();
   private userEmailCache = new Map<string, string>();
   private replyThreadTs = new Map<string, string>(); // jid -> thread_ts for replies
+  private activeThreads = new Set<string>(); // "channel:thread_ts" threads where bot has replied
 
   private opts: SlackChannelOpts;
 
@@ -158,6 +159,17 @@ export class SlackChannel implements Channel {
         this.replyThreadTs.set(jid, threadTs);
       }
 
+      // Auto-trigger in threads where the bot has already replied
+      const msgThreadTs = (msg as { thread_ts?: string }).thread_ts;
+      if (
+        msgThreadTs &&
+        !isBotMessage &&
+        this.activeThreads.has(`${msg.channel}:${msgThreadTs}`) &&
+        !TRIGGER_PATTERN.test(content)
+      ) {
+        content = `@${ASSISTANT_NAME} ${content}`;
+      }
+
       // Resolve email in background (non-blocking)
       const senderEmail =
         msg.user && !isBotMessage
@@ -230,6 +242,10 @@ export class SlackChannel implements Channel {
             ...(threadTs ? { thread_ts: threadTs } : {}),
           });
         }
+      }
+      // Mark this thread as active so we respond to all follow-ups
+      if (threadTs) {
+        this.activeThreads.add(`${channelId}:${threadTs}`);
       }
       logger.info({ jid, length: text.length }, 'Slack message sent');
     } catch (err) {
