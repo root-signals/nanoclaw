@@ -37,6 +37,7 @@ export class SlackChannel implements Channel {
   private outgoingQueue: Array<{ jid: string; text: string }> = [];
   private flushing = false;
   private userNameCache = new Map<string, string>();
+  private userEmailCache = new Map<string, string>();
 
   private opts: SlackChannelOpts;
 
@@ -120,11 +121,17 @@ export class SlackChannel implements Channel {
         }
       }
 
+      // Resolve email in background (non-blocking)
+      const senderEmail = msg.user && !isBotMessage
+        ? await this.resolveUserEmail(msg.user)
+        : undefined;
+
       this.opts.onMessage(jid, {
         id: msg.ts,
         chat_jid: jid,
         sender: msg.user || msg.bot_id || '',
         sender_name: senderName,
+        sender_email: senderEmail,
         content,
         timestamp,
         is_from_me: isBotMessage,
@@ -254,9 +261,30 @@ export class SlackChannel implements Channel {
       const result = await this.app.client.users.info({ user: userId });
       const name = result.user?.real_name || result.user?.name;
       if (name) this.userNameCache.set(userId, name);
+      // Also cache email from the same API call
+      const email = result.user?.profile?.email;
+      if (email) this.userEmailCache.set(userId, email);
       return name;
     } catch (err) {
       logger.debug({ userId, err }, 'Failed to resolve Slack user name');
+      return undefined;
+    }
+  }
+
+  private async resolveUserEmail(userId: string): Promise<string | undefined> {
+    if (!userId) return undefined;
+
+    const cached = this.userEmailCache.get(userId);
+    if (cached) return cached;
+
+    // Email may have been cached by resolveUserName already
+    try {
+      const result = await this.app.client.users.info({ user: userId });
+      const email = result.user?.profile?.email;
+      if (email) this.userEmailCache.set(userId, email);
+      return email;
+    } catch (err) {
+      logger.debug({ userId, err }, 'Failed to resolve Slack user email');
       return undefined;
     }
   }

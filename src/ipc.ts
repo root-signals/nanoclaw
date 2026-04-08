@@ -466,35 +466,64 @@ export async function processTaskIpc(
       break;
 
     case 'self_rebuild':
-      if (true) { // Admin check is enforced at container level (ADMIN_MODE env)
-        logger.info({ group: sourceGroup }, 'Admin requested rebuild and restart');
+      if (true) {
+        // Admin check is enforced at container level (ADMIN_MODE env)
+        logger.info(
+          { group: sourceGroup },
+          'Admin requested rebuild and restart',
+        );
         setTimeout(async () => {
           try {
             logger.info('Running npm run build...');
-            execSync('npm run build', { cwd: process.cwd(), stdio: 'pipe', timeout: 60000 });
+            execSync('npm run build', {
+              cwd: process.cwd(),
+              stdio: 'pipe',
+              timeout: 60000,
+            });
             logger.info('Running container build...');
-            execSync('bash container/build.sh', { cwd: process.cwd(), stdio: 'pipe', timeout: 300000 });
+            execSync('bash container/build.sh', {
+              cwd: process.cwd(),
+              stdio: 'pipe',
+              timeout: 300000,
+            });
             logger.info('Restarting service...');
-            execSync('sudo systemctl restart nanoclaw', { stdio: 'pipe', timeout: 30000 });
+            execSync('sudo systemctl restart nanoclaw', {
+              stdio: 'pipe',
+              timeout: 30000,
+            });
           } catch (err) {
             logger.error({ err }, 'Self-rebuild failed');
           }
         }, 1000);
       } else {
-        logger.warn({ sourceGroup }, 'Unauthorized self_rebuild attempt blocked');
+        logger.warn(
+          { sourceGroup },
+          'Unauthorized self_rebuild attempt blocked',
+        );
       }
       break;
 
     case 'git_push':
-      if (true) { // Admin check is enforced at container level (ADMIN_MODE env)
+      if (true) {
+        // Admin check is enforced at container level (ADMIN_MODE env)
         logger.info({ group: sourceGroup }, 'Admin requested git push');
         setTimeout(async () => {
           try {
             if (data.message) {
-              execSync(`git commit --amend -m ${JSON.stringify(data.message)}`, { cwd: process.cwd(), stdio: 'pipe' });
+              execSync(
+                `git commit --amend -m ${JSON.stringify(data.message)}`,
+                { cwd: process.cwd(), stdio: 'pipe' },
+              );
             }
-            const result = execSync('git push origin main 2>&1', { cwd: process.cwd(), stdio: 'pipe', timeout: 60000 });
-            logger.info({ output: result.toString().slice(0, 500) }, 'Git push completed');
+            const result = execSync('git push origin main 2>&1', {
+              cwd: process.cwd(),
+              stdio: 'pipe',
+              timeout: 60000,
+            });
+            logger.info(
+              { output: result.toString().slice(0, 500) },
+              'Git push completed',
+            );
           } catch (err) {
             logger.error({ err }, 'Git push failed');
           }

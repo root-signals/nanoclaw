@@ -30,11 +30,13 @@ import { RegisteredGroup } from './types.js';
 
 const onecli = new OneCLI({ url: ONECLI_URL });
 
-function isAdminSender(senderIds: string[] | undefined): boolean {
-  const adminList = process.env.ADMIN_SLACK_USERS;
-  if (!adminList || !senderIds?.length) return false;
-  const admins = new Set(adminList.split(',').map(s => s.trim()).filter(Boolean));
-  return senderIds.some(id => admins.has(id));
+function isAdminSender(senderEmails: string[] | undefined): boolean {
+  const adminDomain = process.env.ADMIN_EMAIL_DOMAIN;
+  if (!adminDomain || !senderEmails?.length) return false;
+  const domain = adminDomain.trim().toLowerCase();
+  return senderEmails.some(
+    (email) => email && email.toLowerCase().endsWith(`@${domain}`),
+  );
 }
 
 // Sentinel markers for robust output parsing (must match agent-runner)
@@ -50,7 +52,7 @@ export interface ContainerInput {
   isScheduledTask?: boolean;
   assistantName?: string;
   script?: string;
-  senderIds?: string[];
+  senderEmails?: string[];
 }
 
 export interface ContainerOutput {
@@ -342,9 +344,12 @@ export async function runContainerAgent(
   const groupDir = resolveGroupFolderPath(group.folder);
   fs.mkdirSync(groupDir, { recursive: true });
 
-  const isAdmin = isAdminSender(input.senderIds);
+  const isAdmin = isAdminSender(input.senderEmails);
   if (isAdmin) {
-    logger.info({ group: group.name, senderIds: input.senderIds }, 'Admin mode activated');
+    logger.info(
+      { group: group.name, senderEmails: input.senderEmails },
+      'Admin mode activated',
+    );
   }
 
   const mounts = buildVolumeMounts(group, input.isMain, isAdmin);
