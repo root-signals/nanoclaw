@@ -160,6 +160,17 @@ function buildVolumeMounts(
             // https://code.claude.com/docs/en/memory#manage-auto-memory
             CLAUDE_CODE_DISABLE_AUTO_MEMORY: '0',
           },
+          mcpServers: {
+            fireflies: {
+              command: 'npx',
+              args: [
+                'mcp-remote',
+                'https://api.fireflies.ai/mcp',
+                '--header',
+                `Authorization: Bearer ${process.env.FIREFLIES_API_KEY || ''}`,
+              ],
+            },
+          },
         },
         null,
         2,
