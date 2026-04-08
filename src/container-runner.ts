@@ -160,17 +160,6 @@ function buildVolumeMounts(
             // https://code.claude.com/docs/en/memory#manage-auto-memory
             CLAUDE_CODE_DISABLE_AUTO_MEMORY: '0',
           },
-          mcpServers: {
-            fireflies: {
-              command: 'npx',
-              args: [
-                'mcp-remote',
-                'https://api.fireflies.ai/mcp',
-                '--header',
-                `Authorization: Bearer ${process.env.FIREFLIES_API_KEY || ''}`,
-              ],
-            },
-          },
         },
         null,
         2,
@@ -262,6 +251,11 @@ async function buildContainerArgs(
 
   // Pass host timezone so container's local time matches the user's
   args.push('-e', `TZ=${TIMEZONE}`);
+
+  // Pass Fireflies API key to container for MCP integration
+  if (process.env.FIREFLIES_API_KEY) {
+    args.push('-e', `FIREFLIES_API_KEY=${process.env.FIREFLIES_API_KEY}`);
+  }
 
   // OneCLI gateway handles credential injection — containers never see real secrets.
   // The gateway intercepts HTTPS traffic and injects API keys or OAuth tokens.

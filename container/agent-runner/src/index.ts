@@ -469,6 +469,7 @@ async function runQuery(
         'Skill',
         'NotebookEdit',
         'mcp__nanoclaw__*',
+        'mcp__fireflies__*',
       ],
       env: sdkEnv,
       permissionMode: 'bypassPermissions',
@@ -484,6 +485,18 @@ async function runQuery(
             NANOCLAW_IS_MAIN: containerInput.isMain ? '1' : '0',
           },
         },
+        ...(process.env.FIREFLIES_API_KEY
+          ? {
+              fireflies: {
+                command: '/app/node_modules/.bin/mcp-remote',
+                args: [
+                  'https://api.fireflies.ai/mcp',
+                  '--header',
+                  `Authorization: Bearer ${process.env.FIREFLIES_API_KEY}`,
+                ],
+              },
+            }
+          : {}),
       },
       hooks: {
         PreCompact: [

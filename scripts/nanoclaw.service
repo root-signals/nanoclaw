@@ -8,6 +8,7 @@ WorkingDirectory=/home/exedev/nanoclaw
 ExecStart=/home/exedev/.local/bin/node dist/index.js
 Restart=always
 RestartSec=5
+EnvironmentFile=/home/exedev/nanoclaw/.env
 Environment=PATH=/home/exedev/.local/bin:/usr/local/bin:/usr/bin:/bin
 User=exedev
 
