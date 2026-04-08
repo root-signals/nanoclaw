@@ -468,12 +468,13 @@ Use available_groups.json to find the JID for a group. The folder name must be c
       ),
   },
   async (args) => {
-    if (!isMain) {
+    const adminMode = process.env.ADMIN_MODE === '1';
+    if (!isMain && !adminMode) {
       return {
         content: [
           {
             type: 'text' as const,
-            text: 'Only the main group can register new groups.',
+            text: 'Only the main group or admin can register new groups.',
           },
         ],
         isError: true,
@@ -487,6 +488,7 @@ Use available_groups.json to find the JID for a group. The folder name must be c
       folder: args.folder,
       trigger: args.trigger,
       requiresTrigger: args.requiresTrigger ?? false,
+      adminMode,
       timestamp: new Date().toISOString(),
     };
 
@@ -497,6 +499,48 @@ Use available_groups.json to find the JID for a group. The folder name must be c
         {
           type: 'text' as const,
           text: `Group "${args.name}" registered. It will start receiving messages immediately.`,
+        },
+      ],
+    };
+  },
+);
+
+server.tool(
+  'unregister_group',
+  `Unregister a group so the agent stops responding to messages there. Main group only. Cannot unregister the main group itself.`,
+  {
+    jid: z
+      .string()
+      .describe('The chat JID to unregister (e.g., "slack:C06TVLE2L73")'),
+  },
+  async (args) => {
+    const adminMode = process.env.ADMIN_MODE === '1';
+    if (!isMain && !adminMode) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'Only the main group or admin can unregister groups.',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const data = {
+      type: 'unregister_group',
+      jid: args.jid,
+      adminMode,
+      timestamp: new Date().toISOString(),
+    };
+
+    writeIpcFile(TASKS_DIR, data);
+
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: `Group "${args.jid}" unregistered. The agent will no longer respond to messages in that group.`,
         },
       ],
     };
@@ -538,6 +582,54 @@ if (process.env.ADMIN_MODE === '1') {
       writeIpcFile(TASKS_DIR, data);
       return {
         content: [{ type: 'text' as const, text: 'Git push requested. The host will push changes to origin.' }],
+      };
+    },
+  );
+  server.tool(
+    'manage_env',
+    `Manage environment variables in the host .env file. Use this to add API keys, tokens, or configuration values. Changes take effect after a service restart (use self_rebuild).
+
+Operations:
+• set: Add or update a variable
+• delete: Remove a variable
+• list: Show all variable names (values are masked for security)`,
+    {
+      operation: z.enum(['set', 'delete', 'list']).describe('Operation to perform'),
+      key: z.string().optional().describe('Environment variable name (required for set/delete)'),
+      value: z.string().optional().describe('Value to set (required for set)'),
+    },
+    async (args) => {
+      if (args.operation === 'set' && (!args.key || !args.value)) {
+        return {
+          content: [{ type: 'text' as const, text: 'Both key and value are required for set operation.' }],
+          isError: true,
+        };
+      }
+      if (args.operation === 'delete' && !args.key) {
+        return {
+          content: [{ type: 'text' as const, text: 'Key is required for delete operation.' }],
+          isError: true,
+        };
+      }
+
+      const data = {
+        type: 'manage_env',
+        operation: args.operation,
+        key: args.key,
+        value: args.value,
+        groupFolder,
+        timestamp: new Date().toISOString(),
+      };
+      writeIpcFile(TASKS_DIR, data);
+
+      const msg = args.operation === 'list'
+        ? 'Environment variable list requested.'
+        : args.operation === 'set'
+          ? `Variable ${args.key} will be set. Restart required for changes to take effect.`
+          : `Variable ${args.key} will be removed. Restart required for changes to take effect.`;
+
+      return {
+        content: [{ type: 'text' as const, text: msg }],
       };
     },
   );
