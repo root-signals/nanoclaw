@@ -534,10 +534,13 @@ export async function processTaskIpc(
               timeout: 300000,
             });
             logger.info('Restarting service...');
-            execSync('sudo systemctl restart nanoclaw', {
-              stdio: 'pipe',
-              timeout: 30000,
-            });
+            // Spawn detached — the restart kills this process, so execSync would always fail.
+            // A detached spawn with unref() lets the restart command survive the parent's death.
+            const child = require('child_process').spawn(
+              'sudo', ['systemctl', 'restart', 'nanoclaw'],
+              { detached: true, stdio: 'ignore' },
+            );
+            child.unref();
           } catch (err) {
             logger.error({ err }, 'Self-rebuild failed');
           }
