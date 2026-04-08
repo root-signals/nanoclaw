@@ -283,6 +283,8 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   let hadError = false;
   let outputSentToUser = false;
 
+  const senderIds = [...new Set(missedMessages.map(m => m.sender).filter(Boolean))];
+
   const output = await runAgent(group, prompt, chatJid, async (result) => {
     // Streaming output callback — called for each agent result
     if (result.result) {
@@ -308,7 +310,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     if (result.status === 'error') {
       hadError = true;
     }
-  });
+  }, senderIds);
 
   await channel.setTyping?.(chatJid, false);
   if (idleTimer) clearTimeout(idleTimer);
@@ -341,6 +343,7 @@ async function runAgent(
   prompt: string,
   chatJid: string,
   onOutput?: (output: ContainerOutput) => Promise<void>,
+  senderIds?: string[],
 ): Promise<'success' | 'error'> {
   const isMain = group.isMain === true;
   const sessionId = sessions[group.folder];
@@ -392,6 +395,7 @@ async function runAgent(
         chatJid,
         isMain,
         assistantName: ASSISTANT_NAME,
+        senderIds,
       },
       (proc, containerName) =>
         queue.registerProcess(chatJid, proc, containerName, group.folder),

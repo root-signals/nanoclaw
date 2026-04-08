@@ -33,6 +33,7 @@ interface ContainerInput {
   isScheduledTask?: boolean;
   assistantName?: string;
   script?: string;
+  senderIds?: string[];
 }
 
 interface ContainerOutput {

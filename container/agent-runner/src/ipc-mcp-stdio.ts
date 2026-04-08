@@ -503,6 +503,46 @@ Use available_groups.json to find the JID for a group. The folder name must be c
   },
 );
 
+// Admin mode tools — only available when the host activates admin mode
+if (process.env.ADMIN_MODE === '1') {
+  server.tool(
+    'self_rebuild',
+    'Rebuild the agent container image and restart the NanoClaw service. Use after modifying source code in /workspace/project/. This will terminate the current session — send a confirmation message first.',
+    {},
+    async () => {
+      const data = {
+        type: 'self_rebuild',
+        groupFolder,
+        timestamp: new Date().toISOString(),
+      };
+      writeIpcFile(TASKS_DIR, data);
+      return {
+        content: [{ type: 'text' as const, text: 'Rebuild and restart requested. The service will restart shortly — this session will end.' }],
+      };
+    },
+  );
+
+  server.tool(
+    'git_push',
+    'Push committed changes to the git remote (origin). Use after making and committing code changes in /workspace/project/.',
+    {
+      message: z.string().optional().describe('Optional: amend the last commit message before pushing'),
+    },
+    async (args) => {
+      const data = {
+        type: 'git_push',
+        message: args.message,
+        groupFolder,
+        timestamp: new Date().toISOString(),
+      };
+      writeIpcFile(TASKS_DIR, data);
+      return {
+        content: [{ type: 'text' as const, text: 'Git push requested. The host will push changes to origin.' }],
+      };
+    },
+  );
+}
+
 // Start the stdio transport
 const transport = new StdioServerTransport();
 await server.connect(transport);

@@ -30,6 +30,13 @@ import { RegisteredGroup } from './types.js';
 
 const onecli = new OneCLI({ url: ONECLI_URL });
 
+function isAdminSender(senderIds: string[] | undefined): boolean {
+  const adminList = process.env.ADMIN_SLACK_USERS;
+  if (!adminList || !senderIds?.length) return false;
+  const admins = new Set(adminList.split(',').map(s => s.trim()).filter(Boolean));
+  return senderIds.some(id => admins.has(id));
+}
+
 // Sentinel markers for robust output parsing (must match agent-runner)
 const OUTPUT_START_MARKER = '---NANOCLAW_OUTPUT_START---';
 const OUTPUT_END_MARKER = '---NANOCLAW_OUTPUT_END---';
@@ -43,6 +50,7 @@ export interface ContainerInput {
   isScheduledTask?: boolean;
   assistantName?: string;
   script?: string;
+  senderIds?: string[];
 }
 
 export interface ContainerOutput {
@@ -61,6 +69,7 @@ interface VolumeMount {
 function buildVolumeMounts(
   group: RegisteredGroup,
   isMain: boolean,
+  isAdmin: boolean = false,
 ): VolumeMount[] {
   const mounts: VolumeMount[] = [];
   const projectRoot = process.cwd();
@@ -75,7 +84,7 @@ function buildVolumeMounts(
     mounts.push({
       hostPath: projectRoot,
       containerPath: '/workspace/project',
-      readonly: true,
+      readonly: !isAdmin,
     });
 
     // Shadow .env so the agent cannot read secrets from the mounted project root.
@@ -115,6 +124,24 @@ function buildVolumeMounts(
       });
     }
   } else {
+    // Admin users in non-main groups get project root (read-write) for self-modification
+    if (isAdmin) {
+      mounts.push({
+        hostPath: projectRoot,
+        containerPath: '/workspace/project',
+        readonly: false,
+      });
+      // Shadow .env even for admin — secrets stay off the container
+      const envFile = path.join(projectRoot, '.env');
+      if (fs.existsSync(envFile)) {
+        mounts.push({
+          hostPath: '/dev/null',
+          containerPath: '/workspace/project/.env',
+          readonly: true,
+        });
+      }
+    }
+
     // Other groups only get their own folder
     mounts.push({
       hostPath: groupDir,
@@ -246,6 +273,7 @@ async function buildContainerArgs(
   mounts: VolumeMount[],
   containerName: string,
   agentIdentifier?: string,
+  isAdmin: boolean = false,
 ): Promise<string[]> {
   const args: string[] = ['run', '-i', '--rm', '--name', containerName];
 
@@ -255,6 +283,11 @@ async function buildContainerArgs(
   // Pass Fireflies API key to container for MCP integration
   if (process.env.FIREFLIES_API_KEY) {
     args.push('-e', `FIREFLIES_API_KEY=${process.env.FIREFLIES_API_KEY}`);
+  }
+
+  // Admin mode: allow container to use self_rebuild and git_push IPC tools
+  if (isAdmin) {
+    args.push('-e', 'ADMIN_MODE=1');
   }
 
   // OneCLI gateway handles credential injection — containers never see real secrets.
@@ -309,7 +342,12 @@ export async function runContainerAgent(
   const groupDir = resolveGroupFolderPath(group.folder);
   fs.mkdirSync(groupDir, { recursive: true });
 
-  const mounts = buildVolumeMounts(group, input.isMain);
+  const isAdmin = isAdminSender(input.senderIds);
+  if (isAdmin) {
+    logger.info({ group: group.name, senderIds: input.senderIds }, 'Admin mode activated');
+  }
+
+  const mounts = buildVolumeMounts(group, input.isMain, isAdmin);
   const safeName = group.folder.replace(/[^a-zA-Z0-9-]/g, '-');
   const containerName = `nanoclaw-${safeName}-${Date.now()}`;
   // Main group uses the default OneCLI agent; others use their own agent.
@@ -320,6 +358,7 @@ export async function runContainerAgent(
     mounts,
     containerName,
     agentIdentifier,
+    isAdmin,
   );
 
   logger.debug(
