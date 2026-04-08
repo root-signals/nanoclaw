@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execSync, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
@@ -536,8 +536,9 @@ export async function processTaskIpc(
             logger.info('Restarting service...');
             // Spawn detached — the restart kills this process, so execSync would always fail.
             // A detached spawn with unref() lets the restart command survive the parent's death.
-            const child = require('child_process').spawn(
-              'sudo', ['systemctl', 'restart', 'nanoclaw'],
+            const child = spawn(
+              'sudo',
+              ['systemctl', 'restart', 'nanoclaw'],
               { detached: true, stdio: 'ignore' },
             );
             child.unref();
