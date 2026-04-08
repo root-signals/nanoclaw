@@ -26,6 +26,7 @@ export interface SlackChannelOpts {
   onMessage: OnInboundMessage;
   onChatMetadata: OnChatMetadata;
   registeredGroups: () => Record<string, RegisteredGroup>;
+  onAutoRegister?: (jid: string, group: RegisteredGroup) => void;
 }
 
 export class SlackChannel implements Channel {
@@ -93,7 +94,29 @@ export class SlackChannel implements Channel {
 
       // Only deliver full messages for registered groups
       const groups = this.opts.registeredGroups();
-      if (!groups[jid]) return;
+      if (!groups[jid]) {
+        // Auto-register DMs from admin-domain users
+        if (!isGroup && msg.user && this.opts.onAutoRegister) {
+          const email = await this.resolveUserEmail(msg.user);
+          const adminDomain = process.env.ADMIN_EMAIL_DOMAIN;
+          if (email && adminDomain && email.toLowerCase().endsWith(`@${adminDomain.trim().toLowerCase()}`)) {
+            const userName = (await this.resolveUserName(msg.user)) || msg.user;
+            const folderName = `slack_dm_${msg.user.toLowerCase()}`;
+            this.opts.onAutoRegister(jid, {
+              name: `DM: ${userName}`,
+              folder: folderName,
+              trigger: `@${ASSISTANT_NAME}`,
+              added_at: new Date().toISOString(),
+              requiresTrigger: false,
+            });
+            logger.info({ jid, user: msg.user, email }, 'Auto-registered admin DM');
+          } else {
+            return;
+          }
+        } else {
+          return;
+        }
+      }
 
       const isBotMessage = !!msg.bot_id || msg.user === this.botUserId;
 
@@ -122,9 +145,10 @@ export class SlackChannel implements Channel {
       }
 
       // Resolve email in background (non-blocking)
-      const senderEmail = msg.user && !isBotMessage
-        ? await this.resolveUserEmail(msg.user)
-        : undefined;
+      const senderEmail =
+        msg.user && !isBotMessage
+          ? await this.resolveUserEmail(msg.user)
+          : undefined;
 
       this.opts.onMessage(jid, {
         id: msg.ts,

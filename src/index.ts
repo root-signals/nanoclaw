@@ -285,9 +285,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
   const senderEmails = [
     ...new Set(
-      missedMessages
-        .map((m) => m.sender_email)
-        .filter(Boolean) as string[],
+      missedMessages.map((m) => m.sender_email).filter(Boolean) as string[],
     ),
   ];
 
@@ -688,6 +686,9 @@ async function main(): Promise<void> {
       isGroup?: boolean,
     ) => storeChatMetadata(chatJid, timestamp, name, channel, isGroup),
     registeredGroups: () => registeredGroups,
+    onAutoRegister: (jid: string, group: RegisteredGroup) => {
+      registerGroup(jid, group);
+    },
   };
 
   // Create and connect all registered channels.
