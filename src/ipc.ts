@@ -6,7 +6,13 @@ import { CronExpressionParser } from 'cron-parser';
 
 import { DATA_DIR, IPC_POLL_INTERVAL, TIMEZONE } from './config.js';
 import { AvailableGroup } from './container-runner.js';
-import { createTask, deleteRegisteredGroup, deleteTask, getTaskById, updateTask } from './db.js';
+import {
+  createTask,
+  deleteRegisteredGroup,
+  deleteTask,
+  getTaskById,
+  updateTask,
+} from './db.js';
 import { isValidGroupFolder } from './group-folder.js';
 import { logger } from './logger.js';
 import { RegisteredGroup } from './types.js';
@@ -180,6 +186,8 @@ export async function processTaskIpc(
     operation?: string;
     key?: string;
     value?: string;
+    // For register_group / unregister_group from admin containers
+    adminMode?: boolean;
   },
   sourceGroup: string, // Verified identity from IPC directory
   isMain: boolean, // Verified from directory path
@@ -481,15 +489,24 @@ export async function processTaskIpc(
       if (data.jid) {
         const existing = registeredGroups[data.jid];
         if (!existing) {
-          logger.warn({ jid: data.jid }, 'unregister_group: JID not registered');
+          logger.warn(
+            { jid: data.jid },
+            'unregister_group: JID not registered',
+          );
           break;
         }
         if (existing.isMain) {
-          logger.warn({ jid: data.jid }, 'unregister_group: cannot unregister main group');
+          logger.warn(
+            { jid: data.jid },
+            'unregister_group: cannot unregister main group',
+          );
           break;
         }
         deleteRegisteredGroup(data.jid);
-        logger.info({ jid: data.jid, folder: existing.folder }, 'Group unregistered');
+        logger.info(
+          { jid: data.jid, folder: existing.folder },
+          'Group unregistered',
+        );
       } else {
         logger.warn({ data }, 'Invalid unregister_group request - missing jid');
       }
@@ -577,16 +594,22 @@ export async function processTaskIpc(
             .map((l: string) => {
               const k = l.split('=')[0].trim();
               const v = l.split('=').slice(1).join('=').trim();
-              const masked = v.length > 4 ? v.slice(0, 2) + '...' + v.slice(-2) : '****';
+              const masked =
+                v.length > 4 ? v.slice(0, 2) + '...' + v.slice(-2) : '****';
               return `${k}=${masked}`;
             });
-          logger.info({ keys: keys.map((k: string) => k.split('=')[0]) }, 'Env list requested');
+          logger.info(
+            { keys: keys.map((k: string) => k.split('=')[0]) },
+            'Env list requested',
+          );
         } catch (err) {
           logger.error({ err }, 'Failed to list env vars');
         }
       } else if (data.operation === 'set' && data.key && data.value) {
         try {
-          let content = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8') : '';
+          let content = fs.existsSync(envPath)
+            ? fs.readFileSync(envPath, 'utf-8')
+            : '';
           const regex = new RegExp(`^${data.key}=.*$`, 'm');
           if (regex.test(content)) {
             content = content.replace(regex, `${data.key}=${data.value}`);
@@ -603,7 +626,9 @@ export async function processTaskIpc(
         }
       } else if (data.operation === 'delete' && data.key) {
         try {
-          let content = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8') : '';
+          let content = fs.existsSync(envPath)
+            ? fs.readFileSync(envPath, 'utf-8')
+            : '';
           const regex = new RegExp(`^${data.key}=.*\n?`, 'm');
           content = content.replace(regex, '');
           fs.writeFileSync(envPath, content);

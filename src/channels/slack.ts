@@ -39,6 +39,7 @@ export class SlackChannel implements Channel {
   private flushing = false;
   private userNameCache = new Map<string, string>();
   private userEmailCache = new Map<string, string>();
+  private replyThreadTs = new Map<string, string>(); // jid -> thread_ts for replies
 
   private opts: SlackChannelOpts;
 
@@ -99,7 +100,11 @@ export class SlackChannel implements Channel {
         if (!isGroup && msg.user && this.opts.onAutoRegister) {
           const email = await this.resolveUserEmail(msg.user);
           const adminDomain = process.env.ADMIN_EMAIL_DOMAIN;
-          if (email && adminDomain && email.toLowerCase().endsWith(`@${adminDomain.trim().toLowerCase()}`)) {
+          if (
+            email &&
+            adminDomain &&
+            email.toLowerCase().endsWith(`@${adminDomain.trim().toLowerCase()}`)
+          ) {
             const userName = (await this.resolveUserName(msg.user)) || msg.user;
             const folderName = `slack_dm_${msg.user.toLowerCase()}`;
             this.opts.onAutoRegister(jid, {
@@ -109,7 +114,10 @@ export class SlackChannel implements Channel {
               added_at: new Date().toISOString(),
               requiresTrigger: false,
             });
-            logger.info({ jid, user: msg.user, email }, 'Auto-registered admin DM');
+            logger.info(
+              { jid, user: msg.user, email },
+              'Auto-registered admin DM',
+            );
           } else {
             return;
           }
@@ -142,6 +150,12 @@ export class SlackChannel implements Channel {
         ) {
           content = `@${ASSISTANT_NAME} ${content}`;
         }
+      }
+
+      // Track thread for replies — use thread_ts if in a thread, otherwise ts to start one
+      const threadTs = (msg as { thread_ts?: string }).thread_ts || msg.ts;
+      if (!isBotMessage) {
+        this.replyThreadTs.set(jid, threadTs);
       }
 
       // Resolve email in background (non-blocking)
@@ -200,14 +214,20 @@ export class SlackChannel implements Channel {
     }
 
     try {
+      const threadTs = this.replyThreadTs.get(jid);
       // Slack limits messages to ~4000 characters; split if needed
       if (text.length <= MAX_MESSAGE_LENGTH) {
-        await this.app.client.chat.postMessage({ channel: channelId, text });
+        await this.app.client.chat.postMessage({
+          channel: channelId,
+          text,
+          ...(threadTs ? { thread_ts: threadTs } : {}),
+        });
       } else {
         for (let i = 0; i < text.length; i += MAX_MESSAGE_LENGTH) {
           await this.app.client.chat.postMessage({
             channel: channelId,
             text: text.slice(i, i + MAX_MESSAGE_LENGTH),
+            ...(threadTs ? { thread_ts: threadTs } : {}),
           });
         }
       }
