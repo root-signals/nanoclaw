@@ -225,6 +225,15 @@ function buildVolumeMounts(
     readonly: false,
   });
 
+  // Shared action-items directory — all groups read/write the same folder
+  const actionItemsDir = path.join(DATA_DIR, 'action-items');
+  fs.mkdirSync(actionItemsDir, { recursive: true });
+  mounts.push({
+    hostPath: actionItemsDir,
+    containerPath: '/workspace/action-items',
+    readonly: false,
+  });
+
   // Copy agent-runner source into a per-group writable location so agents
   // can customize it (add tools, change behavior) without affecting other
   // groups. Recompiled on container startup via entrypoint.sh.
