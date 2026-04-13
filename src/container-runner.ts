@@ -296,6 +296,11 @@ async function buildContainerArgs(
     args.push('-e', `FIREFLIES_API_KEY=${process.env.FIREFLIES_API_KEY}`);
   }
 
+  // Pass OTel API key for instrumentation
+  if (process.env.SCORABLE_API_KEY) {
+    args.push('-e', `SCORABLE_API_KEY=${process.env.SCORABLE_API_KEY}`);
+  }
+
   // Admin mode: allow container to use self_rebuild and git_push IPC tools
   if (isAdmin) {
     args.push('-e', 'ADMIN_MODE=1');
