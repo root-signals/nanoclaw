@@ -23,7 +23,7 @@ import type {
 } from '@anthropic-ai/claude-agent-sdk';
 // Import query from telemetry module which provides a patched version
 // (manuallyInstrument can't patch frozen ESM namespace objects directly)
-import { query, shutdownTelemetry } from './telemetry.js';
+import { query, flushTelemetry, shutdownTelemetry } from './telemetry.js';
 
 import { fileURLToPath } from 'url';
 
@@ -555,6 +555,7 @@ async function runQuery(
   }
 
   ipcPolling = false;
+  await flushTelemetry();
   log(
     `Query done. Messages: ${messageCount}, results: ${resultCount}, lastAssistantUuid: ${lastAssistantUuid || 'none'}, closedDuringQuery: ${closedDuringQuery}`,
   );

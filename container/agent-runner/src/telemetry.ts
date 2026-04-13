@@ -47,6 +47,12 @@ if (apiKey) {
 
 export const query = mutableSDK.query as typeof OriginalSDK.query;
 
+export async function flushTelemetry(): Promise<void> {
+  if (_provider) {
+    await _provider.forceFlush();
+  }
+}
+
 export async function shutdownTelemetry(): Promise<void> {
   if (_provider) {
     await _provider.forceFlush();
