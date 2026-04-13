@@ -47,6 +47,10 @@ if (apiKey) {
 
 export const query = mutableSDK.query as typeof OriginalSDK.query;
 
+export function getTracer() {
+  return _provider?.getTracer('nanoclaw-agent') ?? null;
+}
+
 export async function flushTelemetry(): Promise<void> {
   if (_provider) {
     await _provider.forceFlush();

@@ -23,7 +23,7 @@ import type {
 } from '@anthropic-ai/claude-agent-sdk';
 // Import query from telemetry module which provides a patched version
 // (manuallyInstrument can't patch frozen ESM namespace objects directly)
-import { query, flushTelemetry, shutdownTelemetry } from './telemetry.js';
+import { query, flushTelemetry, shutdownTelemetry, getTracer } from './telemetry.js';
 
 import { fileURLToPath } from 'url';
 
@@ -551,6 +551,27 @@ async function runQuery(
         result: textResult || null,
         newSessionId,
       });
+
+      // Emit a per-result span so traces appear in Scorable immediately
+      const tracer = getTracer();
+      if (tracer) {
+        const span = tracer.startSpan('Justiina.response');
+        span.setAttributes({
+          'nanoclaw.group': containerInput.groupFolder,
+          'nanoclaw.chat_jid': containerInput.chatJid,
+          'nanoclaw.session_id': newSessionId || '',
+          'nanoclaw.result_number': resultCount,
+          'nanoclaw.assistant': containerInput.assistantName || 'Justiina',
+          'input.value': typeof containerInput.prompt === 'string'
+            ? containerInput.prompt.slice(0, 1000)
+            : '<stream>',
+          'output.value': textResult?.slice(0, 2000) || '',
+          'openinference.span.kind': 'AGENT',
+          'nanoclaw.source': 'per-result',
+        });
+        span.end();
+        await flushTelemetry();
+      }
     }
   }
 
