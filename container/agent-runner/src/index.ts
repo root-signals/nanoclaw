@@ -23,7 +23,7 @@ import type {
 } from '@anthropic-ai/claude-agent-sdk';
 // Import query from telemetry module which provides a patched version
 // (manuallyInstrument can't patch frozen ESM namespace objects directly)
-import { query } from './telemetry.js';
+import { query, shutdownTelemetry } from './telemetry.js';
 
 import { fileURLToPath } from 'url';
 
@@ -635,6 +635,7 @@ async function main(): Promise<void> {
       result: null,
       error: `Failed to parse input: ${err instanceof Error ? err.message : String(err)}`,
     });
+    await shutdownTelemetry();
     process.exit(1);
   }
 
@@ -746,8 +747,10 @@ async function main(): Promise<void> {
       newSessionId: sessionId,
       error: errorMessage,
     });
+    await shutdownTelemetry();
     process.exit(1);
   }
+  await shutdownTelemetry();
 }
 
 

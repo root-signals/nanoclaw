@@ -16,6 +16,7 @@ const SERVICE_NAME = 'justiina-agent';
 // in-place, so index.ts must import `query` from here instead of the SDK directly.
 const mutableSDK: Record<string, any> = { ...OriginalSDK };
 
+let _provider: NodeTracerProvider | null = null;
 const apiKey = process.env.SCORABLE_API_KEY;
 
 if (apiKey) {
@@ -58,6 +59,7 @@ if (apiKey) {
     });
 
     provider.register();
+    _provider = provider;
 
     const instrumentation = new ClaudeAgentSDKInstrumentation({
       tracerProvider: provider,
@@ -80,3 +82,12 @@ if (apiKey) {
 
 // Export the (possibly patched) query function for use by index.ts
 export const query = mutableSDK.query as typeof OriginalSDK.query;
+
+// Flush and shut down the trace provider so spans are exported before exit.
+export async function shutdownTelemetry(): Promise<void> {
+  if (_provider) {
+    await _provider.forceFlush();
+    await _provider.shutdown();
+    _provider = null;
+  }
+}
