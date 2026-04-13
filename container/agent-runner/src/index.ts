@@ -17,11 +17,17 @@
 import fs from 'fs';
 import path from 'path';
 import { execFile } from 'child_process';
-import {
-  query,
+import type {
   HookCallback,
   PreCompactHookInput,
 } from '@anthropic-ai/claude-agent-sdk';
+import * as ClaudeAgentSDKModule from '@anthropic-ai/claude-agent-sdk';
+import { setupTelemetry } from './telemetry.js';
+
+// Create mutable copy — ESM namespace objects are read-only
+const ClaudeAgentSDK = { ...ClaudeAgentSDKModule } as Record<string, unknown>;
+const telemetry = setupTelemetry(ClaudeAgentSDK);
+const query = ClaudeAgentSDK.query as typeof ClaudeAgentSDKModule.query;
 import { fileURLToPath } from 'url';
 
 interface ContainerInput {
@@ -743,8 +749,10 @@ async function main(): Promise<void> {
       newSessionId: sessionId,
       error: errorMessage,
     });
+    await telemetry?.shutdown();
     process.exit(1);
   }
+  await telemetry?.shutdown();
 }
 
 main();
