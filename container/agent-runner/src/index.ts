@@ -21,11 +21,10 @@ import type {
   HookCallback,
   PreCompactHookInput,
 } from '@anthropic-ai/claude-agent-sdk';
-import { setupTelemetry, ClaudeAgentSDK } from './telemetry.js';
+// Import query from telemetry module which provides a patched version
+// (manuallyInstrument can't patch frozen ESM namespace objects directly)
+import { query } from './telemetry.js';
 
-// setupTelemetry must run first so manuallyInstrument patches ClaudeAgentSDK before query is used
-setupTelemetry();
-const query = ClaudeAgentSDK.query;
 import { fileURLToPath } from 'url';
 
 interface ContainerInput {
@@ -747,10 +746,8 @@ async function main(): Promise<void> {
       newSessionId: sessionId,
       error: errorMessage,
     });
-    await telemetryHandle?.shutdown();
     process.exit(1);
   }
-  await telemetryHandle?.shutdown();
 }
 
 
