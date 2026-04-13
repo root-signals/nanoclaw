@@ -1,7 +1,7 @@
 import { SEMRESATTRS_PROJECT_NAME } from '@arizeai/openinference-semantic-conventions';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { Resource } from '@opentelemetry/resources';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import {
   NodeTracerProvider,
   SimpleSpanProcessor,
@@ -17,7 +17,7 @@ export function setupTelemetry(): void {
   if (!apiKey) return;
 
   const provider = new NodeTracerProvider({
-    resource: new Resource({
+    resource: resourceFromAttributes({
       [ATTR_SERVICE_NAME]: SERVICE_NAME,
       [SEMRESATTRS_PROJECT_NAME]: SERVICE_NAME,
     }),
