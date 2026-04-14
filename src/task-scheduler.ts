@@ -73,6 +73,7 @@ export interface SchedulerDependencies {
     groupFolder: string,
   ) => void;
   sendMessage: (jid: string, text: string) => Promise<void>;
+  clearThreadContext: (jid: string) => void;
 }
 
 async function runTask(
@@ -107,6 +108,10 @@ async function runTask(
     { taskId: task.id, group: task.group_folder },
     'Running scheduled task',
   );
+
+  // Clear thread context so all messages (including IPC send_message)
+  // post as new top-level messages rather than replying to old threads.
+  deps.clearThreadContext(task.chat_jid);
 
   const groups = deps.registeredGroups();
   const group = Object.values(groups).find(
