@@ -725,6 +725,8 @@ async function main(): Promise<void> {
         logger.warn({ jid }, 'No channel owns JID, cannot send message');
         return;
       }
+      // Scheduled tasks are proactive, not replies — always post top-level.
+      channel.clearThreadContext?.(jid);
       const text = formatOutbound(rawText);
       if (text) await channel.sendMessage(jid, text);
     },

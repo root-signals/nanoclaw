@@ -265,6 +265,10 @@ export class SlackChannel implements Channel {
     return jid.startsWith('slack:');
   }
 
+  clearThreadContext(jid: string): void {
+    this.replyThreadTs.delete(jid);
+  }
+
   async disconnect(): Promise<void> {
     this.connected = false;
     await this.app.stop();
