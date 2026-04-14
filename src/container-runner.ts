@@ -301,6 +301,11 @@ async function buildContainerArgs(
     args.push('-e', `SCORABLE_API_KEY=${process.env.SCORABLE_API_KEY}`);
   }
 
+  // Pass Slack bot token for scheduled tasks that post to Slack channels
+  if (process.env.SLACK_BOT_TOKEN) {
+    args.push('-e', `SLACK_BOT_TOKEN=${process.env.SLACK_BOT_TOKEN}`);
+  }
+
   // Admin mode: allow container to use self_rebuild and git_push IPC tools
   if (isAdmin) {
     args.push('-e', 'ADMIN_MODE=1');
