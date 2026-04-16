@@ -222,7 +222,10 @@ export class SlackChannel implements Channel {
             threadContext = contextLines.join('\n');
           }
         } catch (err) {
-          logger.warn({ err, channelId }, 'Failed to fetch thread for task shortcut');
+          logger.warn(
+            { err, channelId },
+            'Failed to fetch thread for task shortcut',
+          );
         }
       }
 
@@ -244,12 +247,18 @@ export class SlackChannel implements Channel {
             {
               type: 'input',
               block_id: 'title_block',
-              label: { type: 'plain_text', text: 'Title (optional — Justiina will infer if blank)' },
+              label: {
+                type: 'plain_text',
+                text: 'Title (optional — Justiina will infer if blank)',
+              },
               optional: true,
               element: {
                 type: 'plain_text_input',
                 action_id: 'title',
-                placeholder: { type: 'plain_text', text: 'e.g. Fix login timeout' },
+                placeholder: {
+                  type: 'plain_text',
+                  text: 'e.g. Fix login timeout',
+                },
               },
             },
             {
@@ -261,7 +270,10 @@ export class SlackChannel implements Channel {
                 type: 'plain_text_input',
                 action_id: 'notes',
                 multiline: true,
-                placeholder: { type: 'plain_text', text: 'Any additional context...' },
+                placeholder: {
+                  type: 'plain_text',
+                  text: 'Any additional context...',
+                },
               },
             },
             {
@@ -281,10 +293,8 @@ export class SlackChannel implements Channel {
       await ack();
 
       const meta = JSON.parse(view.private_metadata || '{}');
-      const title =
-        view.state.values.title_block?.title?.value || '';
-      const notes =
-        view.state.values.notes_block?.notes?.value || '';
+      const title = view.state.values.title_block?.title?.value || '';
+      const notes = view.state.values.notes_block?.notes?.value || '';
 
       const userName =
         (await this.resolveUserName(body.user.id)) || body.user.id;
@@ -321,7 +331,7 @@ export class SlackChannel implements Channel {
         chat_jid: taskJid,
         sender: body.user.id,
         sender_name: userName,
-        content: prompt,
+        content: `@${ASSISTANT_NAME} ${prompt}`,
         timestamp: new Date().toISOString(),
       });
 
