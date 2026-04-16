@@ -180,7 +180,7 @@ When you receive a `<task_creation>` prompt, a user triggered the "Create a Just
 2. Infer a clear, actionable task title and description from the context. If a `<title>` is provided, use it; otherwise derive one.
 3. Create a task directory in `/workspace/extra/rs/tasks/1_backlog/` following the naming convention of existing tasks (e.g. `TICKET-title-slug/`)
 4. Write a `spec.md` inside it following the format in `/workspace/extra/rs/tasks/CLAUDE.md`
-5. `cd /workspace/extra/rs && git add tasks/ && git commit -m "Create task: <title>"`
+5. `cd /workspace/extra/rs && git checkout main && git pull && git add tasks/ && git commit -m "Create task: <title>" && git push`
 6. Respond with a short summary: the task title, a one-line description, and the file path
 
 Keep the response concise — the user sees it in Slack.
