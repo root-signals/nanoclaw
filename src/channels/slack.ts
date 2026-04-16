@@ -27,6 +27,8 @@ export interface SlackChannelOpts {
   onChatMetadata: OnChatMetadata;
   registeredGroups: () => Record<string, RegisteredGroup>;
   onAutoRegister?: (jid: string, group: RegisteredGroup) => void;
+  /** JID of the group that handles task creation (has rs repo mounted) */
+  taskGroupJid?: string;
 }
 
 export class SlackChannel implements Channel {
@@ -187,6 +189,154 @@ export class SlackChannel implements Channel {
         is_from_me: isBotMessage,
         is_bot_message: isBotMessage,
       });
+    });
+
+    // ── "Create a Justiina ticket" message shortcut ──────────────────────
+    this.app.shortcut('create_task', async ({ shortcut, ack, client }) => {
+      await ack();
+      if (shortcut.type !== 'message_action') return;
+
+      const sourceText = shortcut.message?.text || '';
+      const channelId = shortcut.channel?.id;
+      const threadTs = (shortcut.message as { thread_ts?: string })?.thread_ts;
+      const messageTs = shortcut.message?.ts;
+
+      // Fetch thread context if the message is in a thread
+      let threadContext = '';
+      if (channelId && threadTs) {
+        try {
+          const replies = await client.conversations.replies({
+            channel: channelId,
+            ts: threadTs,
+            limit: 15,
+          });
+          if (replies.messages) {
+            const contextLines = await Promise.all(
+              replies.messages.map(async (m) => {
+                const name = m.user
+                  ? (await this.resolveUserName(m.user)) || m.user
+                  : 'Unknown';
+                return `${name}: ${m.text || ''}`;
+              }),
+            );
+            threadContext = contextLines.join('\n');
+          }
+        } catch (err) {
+          logger.warn({ err, channelId }, 'Failed to fetch thread for task shortcut');
+        }
+      }
+
+      // Open modal with pre-filled title and context
+      await client.views.open({
+        trigger_id: shortcut.trigger_id,
+        view: {
+          type: 'modal',
+          callback_id: 'create_task_modal',
+          title: { type: 'plain_text', text: 'Create a ticket' },
+          submit: { type: 'plain_text', text: 'Create' },
+          private_metadata: JSON.stringify({
+            sourceText,
+            threadContext,
+            channelId,
+            userId: shortcut.user.id,
+          }),
+          blocks: [
+            {
+              type: 'input',
+              block_id: 'title_block',
+              label: { type: 'plain_text', text: 'Title (optional — Justiina will infer if blank)' },
+              optional: true,
+              element: {
+                type: 'plain_text_input',
+                action_id: 'title',
+                placeholder: { type: 'plain_text', text: 'e.g. Fix login timeout' },
+              },
+            },
+            {
+              type: 'input',
+              block_id: 'notes_block',
+              label: { type: 'plain_text', text: 'Extra notes' },
+              optional: true,
+              element: {
+                type: 'plain_text_input',
+                action_id: 'notes',
+                multiline: true,
+                placeholder: { type: 'plain_text', text: 'Any additional context...' },
+              },
+            },
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: `*Source message:*\n>${sourceText.split('\n').join('\n>')}`,
+              },
+            },
+          ],
+        },
+      });
+    });
+
+    // Modal submission handler
+    this.app.view('create_task_modal', async ({ ack, view, body }) => {
+      await ack();
+
+      const meta = JSON.parse(view.private_metadata || '{}');
+      const title =
+        view.state.values.title_block?.title?.value || '';
+      const notes =
+        view.state.values.notes_block?.notes?.value || '';
+
+      const userName =
+        (await this.resolveUserName(body.user.id)) || body.user.id;
+
+      // Build the prompt for Justiina
+      const prompt = [
+        `<task_creation user="${userName}">`,
+        title ? `  <title>${title}</title>` : '',
+        notes ? `  <notes>${notes}</notes>` : '',
+        `  <source_message>${meta.sourceText || ''}</source_message>`,
+        meta.threadContext
+          ? `  <thread_context>\n${meta.threadContext}\n  </thread_context>`
+          : '',
+        '</task_creation>',
+        '',
+        'Create a task in /workspace/extra/rs/tasks/1_backlog/ based on the above.',
+        'Infer a clear title and description from the source message and thread context.',
+        'Follow the task format in /workspace/extra/rs/tasks/CLAUDE.md.',
+        'Commit the new task file.',
+        'Respond with a short summary of the task you created.',
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      // Route through the task group (general-chatter) as a synthetic message
+      const taskJid = this.opts.taskGroupJid;
+      if (!taskJid) {
+        logger.warn('No taskGroupJid configured, cannot process task shortcut');
+        return;
+      }
+
+      this.opts.onMessage(taskJid, {
+        id: `task-shortcut-${Date.now()}`,
+        chat_jid: taskJid,
+        sender: body.user.id,
+        sender_name: userName,
+        content: prompt,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Post ephemeral acknowledgment to the user
+      if (meta.channelId) {
+        try {
+          await this.app.client.chat.postEphemeral({
+            channel: meta.channelId,
+            user: body.user.id,
+            text: `:ticket: Creating ticket — Justiina is on it! You'll see the result in <#${taskJid.replace('slack:', '')}>.`,
+          });
+        } catch (err) {
+          logger.warn({ err }, 'Failed to send ephemeral task ack');
+        }
+      }
     });
   }
 
@@ -385,5 +535,8 @@ registerChannel('slack', (opts: ChannelOpts) => {
     logger.warn('Slack: SLACK_BOT_TOKEN or SLACK_APP_TOKEN not set');
     return null;
   }
-  return new SlackChannel(opts);
+  return new SlackChannel({
+    ...opts,
+    taskGroupJid: opts.taskGroupJid,
+  });
 });

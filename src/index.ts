@@ -689,6 +689,7 @@ async function main(): Promise<void> {
     onAutoRegister: (jid: string, group: RegisteredGroup) => {
       registerGroup(jid, group);
     },
+    taskGroupJid: 'slack:C06TVLE2L73', // #general-chatter — has rs repo mounted
   };
 
   // Create and connect all registered channels.

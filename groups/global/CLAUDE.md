@@ -172,6 +172,21 @@ Currently mounted repos:
 
 ---
 
+## Ticket Creation (Slack Shortcut)
+
+When you receive a `<task_creation>` prompt, a user triggered the "Create a Justiina ticket" shortcut from a Slack message. Your job:
+
+1. Read the `<source_message>`, `<thread_context>` (if present), `<title>` (if provided), and `<notes>` (if provided)
+2. Infer a clear, actionable task title and description from the context. If a `<title>` is provided, use it; otherwise derive one.
+3. Create a task directory in `/workspace/extra/rs/tasks/1_backlog/` following the naming convention of existing tasks (e.g. `TICKET-title-slug/`)
+4. Write a `spec.md` inside it following the format in `/workspace/extra/rs/tasks/CLAUDE.md`
+5. `cd /workspace/extra/rs && git add tasks/ && git commit -m "Create task: <title>"`
+6. Respond with a short summary: the task title, a one-line description, and the file path
+
+Keep the response concise — the user sees it in Slack.
+
+---
+
 ## Task Scripts
 
 For any recurring task, use `schedule_task`. Frequent agent invocations — especially multiple times a day — consume API credits and can risk account restrictions. If a simple check can determine whether action is needed, add a `script` — it runs first, and the agent is only called when the check passes. This keeps invocations to a minimum.

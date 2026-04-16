@@ -10,6 +10,8 @@ export interface ChannelOpts {
   onChatMetadata: OnChatMetadata;
   registeredGroups: () => Record<string, RegisteredGroup>;
   onAutoRegister?: (jid: string, group: RegisteredGroup) => void;
+  /** JID of the group that handles task creation shortcuts */
+  taskGroupJid?: string;
 }
 
 export type ChannelFactory = (opts: ChannelOpts) => Channel | null;
