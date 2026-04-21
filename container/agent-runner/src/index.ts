@@ -474,6 +474,7 @@ async function runQuery(
         'NotebookEdit',
         'mcp__nanoclaw__*',
         'mcp__fireflies__*',
+        'mcp__vanta__*',
       ],
       env: sdkEnv,
       permissionMode: 'bypassPermissions',
@@ -498,6 +499,22 @@ async function runQuery(
                   '--header',
                   `Authorization: Bearer ${process.env.FIREFLIES_API_KEY}`,
                 ],
+              },
+            }
+          : {}),
+        ...(process.env.VANTA_CLIENT_ID && process.env.VANTA_CLIENT_SECRET
+          ? {
+              vanta: {
+                command: 'bash',
+                args: [
+                  '-c',
+                  'printf \'{"client_id":"%s","client_secret":"%s"}\' "$VANTA_CLIENT_ID" "$VANTA_CLIENT_SECRET" > /tmp/vanta-credentials.env && npx -y @vantasdk/vanta-mcp-server',
+                ],
+                env: {
+                  VANTA_CLIENT_ID: process.env.VANTA_CLIENT_ID,
+                  VANTA_CLIENT_SECRET: process.env.VANTA_CLIENT_SECRET,
+                  VANTA_ENV_FILE: '/tmp/vanta-credentials.env',
+                },
               },
             }
           : {}),

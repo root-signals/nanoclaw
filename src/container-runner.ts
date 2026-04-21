@@ -296,6 +296,14 @@ async function buildContainerArgs(
     args.push('-e', `FIREFLIES_API_KEY=${process.env.FIREFLIES_API_KEY}`);
   }
 
+  // Pass Vanta credentials to container for MCP integration
+  if (process.env.VANTA_CLIENT_ID) {
+    args.push('-e', `VANTA_CLIENT_ID=${process.env.VANTA_CLIENT_ID}`);
+  }
+  if (process.env.VANTA_CLIENT_SECRET) {
+    args.push('-e', `VANTA_CLIENT_SECRET=${process.env.VANTA_CLIENT_SECRET}`);
+  }
+
   // Pass OTel API key for instrumentation
   if (process.env.SCORABLE_API_KEY) {
     args.push('-e', `SCORABLE_API_KEY=${process.env.SCORABLE_API_KEY}`);
