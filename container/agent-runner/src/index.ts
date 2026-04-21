@@ -508,7 +508,7 @@ async function runQuery(
                 command: 'bash',
                 args: [
                   '-c',
-                  'printf \'{"client_id":"%s","client_secret":"%s"}\' "$VANTA_CLIENT_ID" "$VANTA_CLIENT_SECRET" > /tmp/vanta-credentials.env && npx -y @vantasdk/vanta-mcp-server',
+                  'printf \'{"client_id":"%s","client_secret":"%s"}\' "$VANTA_CLIENT_ID" "$VANTA_CLIENT_SECRET" > /tmp/vanta-credentials.env && vanta-mcp-server',
                 ],
                 env: {
                   VANTA_CLIENT_ID: process.env.VANTA_CLIENT_ID,
