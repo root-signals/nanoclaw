@@ -30,6 +30,10 @@ RUN apt-get update && apt-get install -y \
     && apt-get update && apt-get install -y gh \
     && rm -rf /var/lib/apt/lists/*
 
+# Install gcx (Grafana Cloud CLI)
+RUN curl -fsSL https://github.com/grafana/gcx/releases/download/v0.2.9/gcx_0.2.9_linux_amd64.tar.gz | tar xz -C /usr/local/bin/ gcx \
+    && chmod +x /usr/local/bin/gcx
+
 # Set Chromium path for agent-browser
 ENV AGENT_BROWSER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium

@@ -314,6 +314,17 @@ async function buildContainerArgs(
     args.push('-e', `SLACK_BOT_TOKEN=${process.env.SLACK_BOT_TOKEN}`);
   }
 
+  // Pass Grafana credentials for gcx CLI
+  if (process.env.GRAFANA_SERVER) {
+    args.push('-e', `GRAFANA_SERVER=${process.env.GRAFANA_SERVER}`);
+  }
+  if (process.env.GRAFANA_TOKEN) {
+    args.push('-e', `GRAFANA_TOKEN=${process.env.GRAFANA_TOKEN}`);
+  }
+  if (process.env.GRAFANA_CLOUD_TOKEN) {
+    args.push('-e', `GRAFANA_CLOUD_TOKEN=${process.env.GRAFANA_CLOUD_TOKEN}`);
+  }
+
   // Admin mode: allow container to use self_rebuild and git_push IPC tools
   if (isAdmin) {
     args.push('-e', 'ADMIN_MODE=1');
