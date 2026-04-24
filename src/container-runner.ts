@@ -200,6 +200,12 @@ function buildVolumeMounts(
   const skillsSrc = path.join(process.cwd(), 'container', 'skills');
   const skillsDst = path.join(groupSessionsDir, 'skills');
   if (fs.existsSync(skillsSrc)) {
+    // Remove stale destination first — previous container runs may leave
+    // read-only files that cpSync cannot overwrite.
+    if (fs.existsSync(skillsDst)) {
+      fs.rmSync(skillsDst, { recursive: true, force: true });
+    }
+    fs.mkdirSync(skillsDst, { recursive: true });
     for (const skillDir of fs.readdirSync(skillsSrc)) {
       const srcDir = path.join(skillsSrc, skillDir);
       if (!fs.statSync(srcDir).isDirectory()) continue;
